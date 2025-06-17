@@ -1,22 +1,45 @@
-const express = require('express')
+import express from 'express'
+import bcrypt from 'bcryptjs'
+
 const router = express.Router()
-const passport = require('passport')
 
-const User = require('../models/User')
+// Demo user for testing
+const demoUser = {
+  id: 1,
+  username: 'demo',
+  email: 'demo@example.com',
+  password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi' // 'demo'
+}
 
-router.get('/demo', function(req, res) {
-  User.register(new User({ username: 'demo' }), 'demo', function() {
-    res.redirect('/')
-  })
-})
+router.post('/login', async (req, res) => {
+  try {
+    const { username, password } = req.body
 
-router.post('/login', passport.authenticate('local'), function(req, res) {
-  res.json({ success: true })
+    if (username === demoUser.username && await bcrypt.compare(password, demoUser.password)) {
+      req.session.user = { id: demoUser.id, username: demoUser.username }
+      res.json({ 
+        success: true, 
+        user: { id: demoUser.id, username: demoUser.username } 
+      })
+    } else {
+      res.status(401).json({ success: false, message: 'Invalid credentials' })
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' })
+  }
 })
 
 router.get('/logout', (req, res) => {
-  req.logout()
-  res.redirect('/login')
+  req.session.destroy()
+  res.json({ success: true })
 })
 
-module.exports = router
+router.get('/me', (req, res) => {
+  if (req.session.user) {
+    res.json(req.session.user)
+  } else {
+    res.status(401).json({ error: 'Not authenticated' })
+  }
+})
+
+export default router

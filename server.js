@@ -1,95 +1,112 @@
-/* eslint-disable multiline-comment-style */
-const express = require('express')
-const next = require('next')
-const mongoose = require('mongoose')
-const passport = require('passport')
-const cookieParser = require('cookie-parser')
-const session = require('cookie-session')
-const bodyParser = require('body-parser')
-const socketIo = require('socket.io')
+import express from 'express'
+import { createServer } from 'http'
+import { Server } from 'socket.io'
+import session from 'express-session'
+import cookieParser from 'cookie-parser'
+import bodyParser from 'body-parser'
+import cors from 'cors'
+import helmet from 'helmet'
+import compression from 'compression'
+import rateLimit from 'express-rate-limit'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import dotenv from 'dotenv'
 
-const Keys = require('./keys')
+// Import routes
+import apiRoutes from './api/routes/index.js'
 
-const dev = Keys.ENVIRON !== 'PROD'
-const app = next({ dev })
-const routes = require('./routes')
-const handle = routes.getRequestHandler(app)
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
-const apiRoutes = require('./api/routes')
-const User = require('./api/models/User')
+dotenv.config()
 
-app
-  .prepare()
-  .then(() => {
-    const server = express()
+const app = express()
+const server = createServer(app)
+const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:3000",
+    methods: ["GET", "POST"]
+  }
+})
 
-    // Allows for cross origin domain request:
-    server.use(function(req, res, next) {
-      res.header('Access-Control-Allow-Origin', '*')
-      res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept')
-      next()
-    })
+const PORT = process.env.PORT || 3001
 
-    // MongoDB
-    mongoose.Promise = Promise
-    mongoose.connect(
-      Keys.MONGODB_URI,
-      { useNewUrlParser: true }
-    )
-    const db = mongoose.connection
-    db.on('error', console.error.bind(console, 'connection error:'))
+// Security middleware
+app.use(helmet({
+  contentSecurityPolicy: false, // Disable for development
+}))
+app.use(compression())
 
-    // Parse application/x-www-form-urlencoded
-    server.use(bodyParser.urlencoded({ extended: false }))
-    // Parse application/json
-    server.use(bodyParser.json())
-    server.use(bodyParser.urlencoded({ extended: true }))
-    // Parse cookies
-    server.use(cookieParser())
-    // Sessions
-    server.use(
-      session({
-        secret: Keys.SESSION_SECRET,
-        resave: true,
-        saveUninitialized: false
-      })
-    )
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
+})
+app.use('/api/', limiter)
 
-    // Passport
-    passport.use(User.createStrategy())
-    passport.serializeUser(User.serializeUser())
-    passport.deserializeUser(User.deserializeUser())
-    server.use(passport.initialize())
-    server.use(passport.session())
+// CORS
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+}))
 
-    let io
-    server.use(function(req, res, next) {
-      res.io = io
-      next()
-    })
+// Body parsing
+app.use(bodyParser.json({ limit: '10mb' }))
+app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }))
+app.use(cookieParser())
 
-    // API routes
-    server.use('/api/v1', apiRoutes)
+// Session
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: false, // Set to true in production with HTTPS
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}))
 
-    // Static routes
-    server.use('/uploads', express.static('uploads'))
+// Socket.io middleware
+app.use((req, res, next) => {
+  res.io = io
+  next()
+})
 
-    // Next.js routes
-    server.get('*', (req, res) => {
-      return handle(req, res)
-    })
+// API routes
+app.use('/api/v1', apiRoutes)
 
-    const finalServer = server.listen(Keys.PORT, err => {
-      if (err) throw err
-      // eslint-disable-next-line
-      console.log('> Ready on http://localhost:' + Keys.PORT)
-    })
+// Static files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 
-    // Socket.io
-    io = socketIo.listen(finalServer)
+// Serve static files from the dist directory in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, 'dist')))
+  
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'dist', 'index.html'))
   })
-  .catch(ex => {
-    // eslint-disable-next-line
-    console.error(ex.stack)
-    process.exit(1)
+}
+
+// Socket.io connection handling
+io.on('connection', (socket) => {
+  console.log('Client connected:', socket.id)
+  
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id)
   })
+  
+  socket.on('join-display', (displayId) => {
+    socket.join(`display-${displayId}`)
+    console.log(`Client ${socket.id} joined display ${displayId}`)
+  })
+})
+
+// Error handling
+app.use((err, req, res, next) => {
+  console.error(err.stack)
+  res.status(500).json({ error: 'Something went wrong!' })
+})
+
+server.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`)
+})
