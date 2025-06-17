@@ -1,79 +1,61 @@
-# Digital Signage - Django + Vue.js
+# Digital Signage - Django Backend
 
-A modern digital signage application built with Django REST Framework backend and Vue.js 3 frontend.
+A modern digital signage application built with Django REST Framework.
 
-## Features
-
-- **Modern Architecture**: Django REST API + Vue.js 3 with Composition API
-- **Real-time Updates**: WebSocket support for live display updates
-- **Responsive Design**: Tailwind CSS for modern, mobile-first UI
-- **Widget System**: Modular widget architecture for displays
-- **Slideshow Management**: Create and manage multimedia slideshows
-- **Display Management**: Control multiple digital displays
-- **User Authentication**: Secure login system
-- **No npm Required**: Can run entirely with Python
-
-## Quick Start
+## 🚀 Quick Start
 
 ### Prerequisites
 
-- Python 3.8+
-- Redis (for WebSocket support)
+- Python 3.8 or higher
+- pip (Python package installer)
 
-### Installation
+### Installation & Setup
 
-1. **Clone the repository**
+1. **Clone or download the project**
    ```bash
-   git clone <repository-url>
+   # If you have the project files
    cd digital-signage
    ```
 
-2. **Create virtual environment**
+2. **Run the setup script**
    ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   python setup.py
    ```
 
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Setup environment**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your settings
-   ```
-
-5. **Run the application**
+3. **Start the application**
    ```bash
    python run.py
    ```
 
-This will:
-- Setup the database
-- Create a demo user (username: `demo`, password: `demo`)
-- Start Django backend on http://localhost:8000
-- Start Vue.js frontend on http://localhost:8080
+4. **Access the application**
+   - Frontend: http://localhost:8080
+   - Django Admin: http://localhost:8000/admin/
+   - API: http://localhost:8000/api/v1/
 
-### Alternative: Development Mode
+### Demo Credentials
 
-For development with hot-reload:
+- **Username**: demo
+- **Password**: demo
 
-1. **Start Django backend**
-   ```bash
-   python manage.py migrate
-   python manage.py runserver 8000
-   ```
+## 🛠️ Manual Installation (Alternative)
 
-2. **Start Vue.js frontend** (in another terminal)
-   ```bash
-   cd frontend
-   npm install
-   npm run serve
-   ```
+If the setup script doesn't work, you can install manually:
 
-## Project Structure
+```bash
+# Install minimal dependencies
+pip install Django==4.2.7 djangorestframework==3.14.0 django-cors-headers==4.3.1 python-decouple==3.8 whitenoise==6.6.0
+
+# Setup database
+python manage.py migrate
+
+# Create demo user
+python manage.py shell -c "from django.contrib.auth.models import User; User.objects.create_user('demo', 'demo@example.com', 'demo') if not User.objects.filter(username='demo').exists() else None"
+
+# Run the application
+python run.py
+```
+
+## 📁 Project Structure
 
 ```
 digital-signage/
@@ -82,18 +64,16 @@ digital-signage/
 ├── displays/                 # Display management app
 ├── slideshows/              # Slideshow management app
 ├── widgets/                 # Widget system app
-├── frontend/                # Vue.js frontend
-│   ├── src/
-│   │   ├── components/      # Vue components
-│   │   ├── views/           # Page components
-│   │   ├── stores/          # Pinia stores
-│   │   └── services/        # API services
 ├── templates/               # Django templates
+├── static/                  # Static files
 ├── requirements.txt         # Python dependencies
-└── run.py                   # Standalone runner
+├── requirements-minimal.txt # Minimal dependencies
+├── setup.py                 # Setup script
+├── run.py                   # Application runner
+└── manage.py               # Django management script
 ```
 
-## API Endpoints
+## 🔌 API Endpoints
 
 ### Authentication
 - `POST /api/v1/auth/login/` - User login
@@ -124,45 +104,32 @@ digital-signage/
 - `PUT /api/v1/widgets/{id}/` - Update widget
 - `DELETE /api/v1/widgets/{id}/` - Delete widget
 
-## WebSocket Endpoints
+## 🎯 Features
 
-- `ws://localhost:8000/ws/display/{display_id}/` - Display-specific updates
-- `ws://localhost:8000/ws/admin/` - Admin updates
+- ✅ **Display Management** - Create and manage digital displays
+- ✅ **Slideshow System** - Create multimedia slideshows
+- ✅ **Widget System** - Modular widget architecture
+- ✅ **REST API** - Full REST API for all operations
+- ✅ **Admin Interface** - Django admin for easy management
+- ✅ **Real-time Updates** - WebSocket support (if available)
+- ✅ **Cross-platform** - Runs on Windows, macOS, and Linux
+- ✅ **No npm Required** - Pure Python implementation
 
-## Technology Stack
-
-### Backend
-- **Django 4.2** - Web framework
-- **Django REST Framework** - API framework
-- **Channels** - WebSocket support
-- **Redis** - Channel layer backend
-- **SQLite** - Default database (configurable)
-
-### Frontend
-- **Vue.js 3** - Frontend framework
-- **Pinia** - State management
-- **Vue Router** - Routing
-- **Tailwind CSS** - Styling
-- **Heroicons** - Icons
-- **Axios** - HTTP client
-
-## Configuration
+## 🔧 Configuration
 
 ### Environment Variables
 
-Create a `.env` file with:
+Create a `.env` file for custom configuration:
 
 ```env
 SECRET_KEY=your-secret-key-here
 DEBUG=True
 ALLOWED_HOSTS=localhost,127.0.0.1
-DATABASE_URL=sqlite:///db.sqlite3
-REDIS_URL=redis://localhost:6379/0
 ```
 
 ### Database
 
-By default, the application uses SQLite. For production, configure PostgreSQL:
+By default, the application uses SQLite. For production, you can configure PostgreSQL:
 
 ```python
 DATABASES = {
@@ -177,48 +144,88 @@ DATABASES = {
 }
 ```
 
-## Deployment
+## 🚀 Production Deployment
 
-### Production Setup
+### Using Gunicorn
 
-1. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+```bash
+# Install gunicorn
+pip install gunicorn
 
-2. **Build frontend**
-   ```bash
-   cd frontend
-   npm run build
-   ```
+# Collect static files
+python manage.py collectstatic
 
-3. **Collect static files**
-   ```bash
-   python manage.py collectstatic
-   ```
+# Run with gunicorn
+gunicorn digital_signage.wsgi:application --bind 0.0.0.0:8000
+```
 
-4. **Run with Gunicorn**
-   ```bash
-   gunicorn digital_signage.wsgi:application
-   ```
-
-### Docker Deployment
+### Using Docker
 
 ```dockerfile
 FROM python:3.11-slim
 
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
+COPY requirements-minimal.txt .
+RUN pip install -r requirements-minimal.txt
 
 COPY . .
 RUN python manage.py collectstatic --noinput
 
 EXPOSE 8000
-CMD ["gunicorn", "digital_signage.wsgi:application", "--bind", "0.0.0.0:8000"]
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
 ```
 
-## Contributing
+## 🛠️ Development
+
+### Adding New Features
+
+1. Create new Django apps for major features
+2. Add models in `models.py`
+3. Create serializers in `serializers.py`
+4. Add views in `views.py`
+5. Configure URLs in `urls.py`
+
+### Running Tests
+
+```bash
+python manage.py test
+```
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+1. **Port already in use**
+   ```bash
+   # Kill processes on ports 8000 and 8080
+   lsof -ti:8000 | xargs kill -9
+   lsof -ti:8080 | xargs kill -9
+   ```
+
+2. **Database errors**
+   ```bash
+   # Reset database
+   rm db.sqlite3
+   python manage.py migrate
+   ```
+
+3. **Permission errors**
+   ```bash
+   # Make scripts executable
+   chmod +x setup.py run.py
+   ```
+
+### Getting Help
+
+- Check the Django admin at http://localhost:8000/admin/
+- Review the API documentation at http://localhost:8000/api/v1/
+- Check the console output for error messages
+
+## 📄 License
+
+This project is licensed under the MIT License.
+
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -226,15 +233,6 @@ CMD ["gunicorn", "digital_signage.wsgi:application", "--bind", "0.0.0.0:8000"]
 4. Add tests if applicable
 5. Submit a pull request
 
-## License
+## 📞 Support
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Demo Credentials
-
-- **Username**: demo
-- **Password**: demo
-
-## Support
-
-For support and questions, please open an issue on the GitHub repository.
+For support and questions, please check the troubleshooting section or create an issue.
