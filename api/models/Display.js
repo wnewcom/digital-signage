@@ -1,21 +1,59 @@
-const mongoose = require('mongoose')
-const shortid = require('shortid')
+const db = require('../database');
 
-const Schema = mongoose.Schema
+class Display {
+  static create(displayData) {
+    const stmt = db.prepare(`
+      INSERT INTO displays (name, description, location, is_active)
+      VALUES (?, ?, ?, ?)
+    `);
+    
+    const result = stmt.run(
+      displayData.name,
+      displayData.description || null,
+      displayData.location || null,
+      displayData.is_active !== undefined ? displayData.is_active : 1
+    );
+    
+    return this.findById(result.lastInsertRowid);
+  }
 
-const Display = new Schema({
-  name: { type: String },
-  layout: { type: String, default: 'spaced', enum: ['compact', 'spaced'] },
-  statusBar: {
-    type: [{ type: String }],
-    default: () => [
-      'date_' + shortid.generate(),
-      'spacer_' + shortid.generate(),
-      'connection_' + shortid.generate(),
-      'time_' + shortid.generate()
-    ]
-  },
-  widgets: [{ type: Schema.Types.ObjectId, ref: 'Widget' }]
-})
+  static findById(id) {
+    const stmt = db.prepare('SELECT * FROM displays WHERE id = ?');
+    return stmt.get(id);
+  }
 
-module.exports = mongoose.model('Display', Display)
+  static findAll() {
+    const stmt = db.prepare('SELECT * FROM displays ORDER BY created_at DESC');
+    return stmt.all();
+  }
+
+  static findActive() {
+    const stmt = db.prepare('SELECT * FROM displays WHERE is_active = 1 ORDER BY created_at DESC');
+    return stmt.all();
+  }
+
+  static update(id, displayData) {
+    const stmt = db.prepare(`
+      UPDATE displays 
+      SET name = ?, description = ?, location = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+    
+    stmt.run(
+      displayData.name,
+      displayData.description,
+      displayData.location,
+      displayData.is_active,
+      id
+    );
+    
+    return this.findById(id);
+  }
+
+  static delete(id) {
+    const stmt = db.prepare('DELETE FROM displays WHERE id = ?');
+    return stmt.run(id);
+  }
+}
+
+module.exports = Display;
